@@ -187,9 +187,13 @@ accepts `--format`, while MCP returns text and has no format option.
     not the true end. **This branch is untested**, because a fixture printing
     more than 16 MB is slow. Getting the true tail would mean replacing
     `exec`/`execFile` with `spawn` and a rolling buffer.
-  - **There is no total report cap yet.** Several checks add up (32 KB each),
-    and the changed-files list is also unbounded, so a branch touching
-    thousands of files still produces a large report.
+  - **The changed-files list is now capped (fixed).** Core's
+    `MAX_CHANGED_FILES` (500) lists the first 500 files, then
+    `… and N more files not shown`. MCP's `structuredContent` carries
+    `totalChangedFiles`. The cap is a parameter of `markdownReport`, so a test
+    can use a small value, and MCP input can't change it.
+  - **There is still no total report cap.** Several checks add up (32 KB
+    each), and very long file paths aren't capped.
 
 ### F7: Repo path is not validated or confined (safety/contract, medium)
 
@@ -397,7 +401,7 @@ accepts `--format`, while MCP returns text and has no format option.
 | F3 | high | safety | `baseRef` option injection writes arbitrary files | V | Fixed |
 | F4 | high | reliability | A failing check aborts the review | V | Fixed |
 | F5 | high | reliability | No timeout on validation commands | T | Partly fixed: 120 s timeout; orphaned grandchildren remain |
-| F6 | medium-high | output | Output uncapped; over 1 MB crashes | V | Partly fixed: 32 KB per-check cap; no total report cap |
+| F6 | medium-high | output | Output uncapped; over 1 MB crashes | V | Partly fixed: 32 KB per-check cap; file list capped at 500; no total report cap |
 | F7 | medium | safety | Repo path not validated or confined | V/I | Open |
 | F8 | medium | correctness | `--repo` path cut at the first space | V | Open |
 | F9 | medium | correctness | Renames and non-ASCII names parsed incorrectly | V | Open |
@@ -406,7 +410,7 @@ accepts `--format`, while MCP returns text and has no format option.
 | F12 | medium | correctness | Uncommitted changes ignored (out of scope) | V | Out of scope; documented limitation |
 | F13 | medium | output | stderr dropped when stdout has output | V | Open |
 | F14 | medium | safety | Full environment passed to checks | V/I | Open |
-| F21 | medium | testing | Minimal tests; thin CI | T | Partly fixed: 18 tests across core, CLI, MCP and runners; CI triggers unchanged |
+| F21 | medium | testing | Minimal tests; thin CI | T | Partly fixed: 19 tests across core, CLI, MCP and runners; CI triggers unchanged |
 | F16 | medium | consistency | `--format` ignored (skipped) | V | Skipped; documented in README |
 | F15 | medium-low | output | Report overwrites `./review-report.md` | T/I | Open; documented in README |
 | F19 | low-medium | contract | Weak MCP schema | V | Partly fixed: unknown keys rejected, structured output; naming and limits open |

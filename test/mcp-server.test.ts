@@ -103,6 +103,7 @@ describe("MCP review_repository", () => {
     expect(report).toContain(BEFORE_FAILURE);
     expect(result.structuredContent).toEqual({
       allChecksPassed: false,
+      totalChangedFiles: 1,
       checks: [{ name: "test", status: "failed", exitCode: 3, timedOut: false }],
     });
   }, 30_000);

@@ -26,6 +26,8 @@ export type CheckSummary = {
 
 export type ReviewResult = {
   report: string;
+  /** All changed files, including any the report doesn't list. */
+  totalChangedFiles: number;
   /** False if any validation or check failed. Adapters use this for exit status. */
   allChecksPassed: boolean;
   checks: CheckSummary[];

@@ -16,6 +16,8 @@ const OUTPUT_LIMITS: OutputLimits = { capBytes: OUTPUT_CAP_BYTES, captureLimitBy
  * grandchild it started can be left running. See F5 in INVESTIGATION.md.
  */
 export const CHECK_TIMEOUT_MS = 120_000;
+/** Changed files listed in the report; the rest are counted, not listed. Not caller-settable. */
+export const MAX_CHANGED_FILES = 500;
 
 /**
  * Allowlisted checks for the untrusted (MCP) interface. Each name maps to a
@@ -87,7 +89,9 @@ export async function reviewRepository(request: ReviewRequest): Promise<ReviewRe
       repositoryPath: request.repositoryPath,
       changedFiles: files,
       validationResults: validations,
+      maxChangedFiles: MAX_CHANGED_FILES,
     }),
+    totalChangedFiles: files.length,
     allChecksPassed: validations.every((result) => result.status === "passed"),
     // Results come back in this order: free-form validations, then checks.
     checks: validations.map((result, index) => ({

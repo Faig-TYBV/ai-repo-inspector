@@ -4,12 +4,18 @@ type ReportInput = {
   repositoryPath: string;
   changedFiles: ChangedFile[];
   validationResults: ValidationResult[];
+  /** At most this many changed files are listed; the rest are counted. */
+  maxChangedFiles: number;
 };
 
 export function markdownReport(input: ReportInput): string {
   const lines = [`# Review Report: ${input.repositoryPath}`, "", "## Changed files"];
-  for (const file of input.changedFiles) {
+  for (const file of input.changedFiles.slice(0, input.maxChangedFiles)) {
     lines.push(`- ${file.path} (${file.status})`);
+  }
+  const notShown = input.changedFiles.length - input.maxChangedFiles;
+  if (notShown > 0) {
+    lines.push(`- … and ${notShown} more files not shown`);
   }
   lines.push("", "## Validation output");
   for (const result of input.validationResults) {

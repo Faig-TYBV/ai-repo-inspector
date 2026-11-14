@@ -29,6 +29,7 @@ server.registerTool(
     // output validation for isError results, so errors are unchanged.
     outputSchema: {
       allChecksPassed: z.boolean(),
+      totalChangedFiles: z.number().int(),
       checks: z.array(
         z.object({
           name: z.string(),
@@ -49,7 +50,11 @@ server.registerTool(
     // pass/fail detail is in the report. Execution errors still throw.
     return {
       content: [{ type: "text", text: result.report }],
-      structuredContent: { allChecksPassed: result.allChecksPassed, checks: result.checks },
+      structuredContent: {
+        allChecksPassed: result.allChecksPassed,
+        totalChangedFiles: result.totalChangedFiles,
+        checks: result.checks,
+      },
     };
   },
 );

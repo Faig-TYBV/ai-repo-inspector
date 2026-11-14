@@ -73,6 +73,8 @@ define. Only inspect repos you trust, or run the tool inside a sandbox.
 - **Each check's output is capped at 32 KB.** The tail is kept, since failures
   usually appear at the end, behind an `[output truncated: N bytes omitted]`
   marker.
+- **The changed-files list is capped at 500 entries.** Any beyond that are
+  summarised as `… and N more files not shown`.
 - **A failing check is a result, not a crash.** Each check shows
   `Status: passed|failed (exit code N | timed out)`. Errors that stop the
   review itself, such as an invalid ref or a program that can't be started,
@@ -121,6 +123,7 @@ with an error that names the key, and nothing runs. Raw command strings in
 ```ts
 {
   allChecksPassed: boolean;
+  totalChangedFiles: number;               // all changed files, including any not listed
   checks: { name: string; status: "passed" | "failed"; exitCode: number | null; timedOut: boolean }[];
 }
 ```
