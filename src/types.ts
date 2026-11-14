@@ -10,6 +10,8 @@ export type ValidationResult = {
   status: "passed" | "failed";
   /** Process exit code; null if the process was killed by a signal. */
   exitCode: number | null;
+  /** True if the process was killed because it hit the time limit. */
+  timedOut: boolean;
   output: string;
 };
 

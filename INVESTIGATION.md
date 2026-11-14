@@ -127,8 +127,23 @@ accepts `--format`, while MCP returns text and has no format option.
 - **Fix:** Add a timeout constant in core and report a `timed-out` status.
 - **Test:** A process that never exits gets a `timed-out` status within the
   limit.
-- **Status: not fixed (deferred).** Probing showed the simple fix isn't
-  enough:
+- **Status: option A implemented; orphaned grandchildren remain a known
+  limitation.**
+  - Core sets `CHECK_TIMEOUT_MS` (120 s), and both runners pass it to Node's
+    `timeout` option.
+  - A timed-out process is reported as `failed` with no exit code and
+    `timedOut: true`, and the report shows `Status: failed (timed out)`.
+    Output printed before the kill is kept.
+  - Tests use a fixture that prints `STARTED`, then hangs for 15 s, with a
+    500 ms timeout, through both the shell (CLI) and npm (MCP check) paths.
+    They assert the call returns in **under 5 s**. If that fails on Linux CI,
+    the callback is waiting on an orphaned grandchild and option B is needed.
+  - The kill reaches only the direct child (see below). On Windows the
+    orphaned `hang.js` still holds the fixture directory, so the test's
+    cleanup is best-effort.
+
+  Findings from probing, which explain why option A alone is not a complete
+  fix:
   - **Node's `timeout` option kills only the direct child (V).** On Windows,
     `exec("node hang.js", { timeout: 500 })` and
     `execFile(node, [npm-cli.js, "test"], { timeout: 500 })` both called back

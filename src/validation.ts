@@ -1,7 +1,7 @@
 import { exec, execFile } from "node:child_process";
 import type { ValidationResult } from "./types.js";
 
-type ChildError = (Error & { code?: unknown; signal?: NodeJS.Signals | null }) | null;
+type ChildError = (Error & { code?: unknown; signal?: NodeJS.Signals | null; killed?: boolean }) | null;
 
 /** Output limits, owned by core (see OUTPUT_CAP_BYTES / CAPTURE_LIMIT_BYTES). */
 export type OutputLimits = {
@@ -26,6 +26,7 @@ function keepTail(output: string, capBytes: number): { text: string; omitted: nu
  * - exited 0                    -> "passed"
  * - exited non-zero (numeric)   -> "failed" with that exit code
  * - output over captureLimit    -> "failed" with exitCode null (Node killed it)
+ * - timed out (Node killed it)  -> "failed" with exitCode null, timedOut true
  * - killed by a signal          -> "failed" with exitCode null
  * - anything else (e.g. ENOENT: program or cwd missing) -> reject; that is a
  *   real execution error, not a check result.
@@ -43,18 +44,23 @@ function settle(
   const { text, omitted } = keepTail(stdout || stderr, limits.capBytes);
   const output = omitted > 0 ? `[output truncated: ${omitted} bytes omitted]\n${text}` : text;
   if (!error) {
-    resolve({ command: label, status: "passed", exitCode: 0, output });
+    resolve({ command: label, status: "passed", exitCode: 0, timedOut: false, output });
   } else if (typeof error.code === "number") {
-    resolve({ command: label, status: "failed", exitCode: error.code, output });
+    resolve({ command: label, status: "failed", exitCode: error.code, timedOut: false, output });
   } else if (error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
     // Node keeps the *first* captureLimitBytes, so this is the end of what was
     // captured, not the true end of the output.
     const marker =
       `[output truncated: process killed after exceeding ${limits.captureLimitBytes} bytes of output; ` +
       "showing the end of what was captured]";
-    resolve({ command: label, status: "failed", exitCode: null, output: `${marker}\n${text}` });
+    resolve({ command: label, status: "failed", exitCode: null, timedOut: false, output: `${marker}\n${text}` });
+  } else if (error.killed && error.signal) {
+    // `killed` is set only when Node itself sent the signal, i.e. the timeout.
+    // Known limitation (F5): this kills the direct child only (shell or npm);
+    // a grandchild it started can keep running, orphaned.
+    resolve({ command: label, status: "failed", exitCode: null, timedOut: true, output });
   } else if (error.signal) {
-    resolve({ command: label, status: "failed", exitCode: null, output });
+    resolve({ command: label, status: "failed", exitCode: null, timedOut: false, output });
   } else {
     reject(error);
   }
@@ -67,17 +73,23 @@ export function runProgram(
   args: string[],
   cwd: string,
   limits: OutputLimits,
+  timeoutMs: number,
 ): Promise<ValidationResult> {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { cwd, maxBuffer: limits.captureLimitBytes }, (error, stdout, stderr) => {
+    execFile(file, args, { cwd, maxBuffer: limits.captureLimitBytes, timeout: timeoutMs }, (error, stdout, stderr) => {
       settle(label, error, stdout, stderr, limits, resolve, reject);
     });
   });
 }
 
-export function runValidation(command: string, cwd: string, limits: OutputLimits): Promise<ValidationResult> {
+export function runValidation(
+  command: string,
+  cwd: string,
+  limits: OutputLimits,
+  timeoutMs: number,
+): Promise<ValidationResult> {
   return new Promise((resolve, reject) => {
-    exec(command, { cwd, maxBuffer: limits.captureLimitBytes }, (error, stdout, stderr) => {
+    exec(command, { cwd, maxBuffer: limits.captureLimitBytes, timeout: timeoutMs }, (error, stdout, stderr) => {
       settle(command, error, stdout, stderr, limits, resolve, reject);
     });
   });
@@ -87,10 +99,11 @@ export async function runValidations(
   commands: string[],
   cwd: string,
   limits: OutputLimits,
+  timeoutMs: number,
 ): Promise<ValidationResult[]> {
   const results: ValidationResult[] = [];
   for (const command of commands) {
-    results.push(await runValidation(command, cwd, limits));
+    results.push(await runValidation(command, cwd, limits, timeoutMs));
   }
   return results;
 }

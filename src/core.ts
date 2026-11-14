@@ -10,6 +10,12 @@ export const OUTPUT_CAP_BYTES = 32 * 1024;
 /** Memory ceiling per stream while a check runs; above it Node kills the process. */
 export const CAPTURE_LIMIT_BYTES = 16 * 1024 * 1024;
 const OUTPUT_LIMITS: OutputLimits = { capBytes: OUTPUT_CAP_BYTES, captureLimitBytes: CAPTURE_LIMIT_BYTES };
+/**
+ * Per-check time limit (CLI validations and MCP checks alike). Known
+ * limitation: Node's timeout kills only the direct child (shell or npm), so a
+ * grandchild it started can be left running. See F5 in INVESTIGATION.md.
+ */
+export const CHECK_TIMEOUT_MS = 120_000;
 
 /**
  * Allowlisted checks for the untrusted (MCP) interface. Each name maps to a
@@ -60,7 +66,7 @@ async function runCheck(name: CheckName, cwd: string): Promise<ValidationResult>
   }
   const args = CHECKS[name];
   const npm = npmInvocation();
-  return runProgram(`check: ${name} (npm ${args.join(" ")})`, npm.file, [...npm.prefixArgs, ...args], cwd, OUTPUT_LIMITS);
+  return runProgram(`check: ${name} (npm ${args.join(" ")})`, npm.file, [...npm.prefixArgs, ...args], cwd, OUTPUT_LIMITS, CHECK_TIMEOUT_MS);
 }
 
 export async function reviewRepository(request: ReviewRequest): Promise<ReviewResult> {
@@ -71,6 +77,7 @@ export async function reviewRepository(request: ReviewRequest): Promise<ReviewRe
     request.validationCommands ?? [],
     request.repositoryPath,
     OUTPUT_LIMITS,
+    CHECK_TIMEOUT_MS,
   );
   for (const check of request.checks ?? []) {
     validations.push(await runCheck(check, request.repositoryPath));
