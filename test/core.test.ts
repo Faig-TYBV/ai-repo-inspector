@@ -45,3 +45,44 @@ describe("reviewRepository baseRef validation", () => {
     expect(result.report).toContain("only-in-core.txt (added)");
   });
 });
+
+describe("reviewRepository output cap", () => {
+  // big.js prints FIRST-LINE, ~2 MB of 100-byte lines, then FINAL-LINE: more
+  // than Node's default 1 MiB maxBuffer, which used to crash the review.
+  const bigOutputFiles = {
+    "package.json": JSON.stringify({ name: "fixture", version: "0.0.0", private: true, scripts: { test: "node big.js" } }),
+    "big.js": [
+      'const line = "x".repeat(99) + "\\n";',
+      'process.stdout.write("FIRST-LINE\\n" + line.repeat(20000));',
+      'console.log("FINAL-LINE");',
+      "",
+    ].join("\n"),
+  };
+  const maxReportBytes = 32 * 1024 + 1024; // per-check cap + headings/markers
+  let repo: string;
+
+  beforeAll(() => {
+    repo = createFixtureRepo("only-in-big.txt", bigOutputFiles);
+  });
+
+  afterAll(() => {
+    if (repo) removeFixture(repo);
+  });
+
+  function expectTailOnly(report: string): void {
+    expect(report).toContain("[output truncated:");
+    expect(report).toContain("FINAL-LINE");
+    expect(report).not.toContain("FIRST-LINE");
+    expect(Buffer.byteLength(report)).toBeLessThan(maxReportBytes);
+  }
+
+  it("keeps the tail of ~2 MB output from a shell validation (CLI path)", async () => {
+    const result = await reviewRepository({ repositoryPath: repo, validationCommands: ["node big.js"] });
+    expectTailOnly(result.report);
+  }, 30_000);
+
+  it("keeps the tail of ~2 MB output from an allowlisted check (MCP path)", async () => {
+    const result = await reviewRepository({ repositoryPath: repo, checks: ["test"] });
+    expectTailOnly(result.report);
+  }, 30_000);
+});

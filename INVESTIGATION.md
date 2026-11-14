@@ -127,6 +127,27 @@ accepts `--format`, while MCP returns text and has no format option.
 - **Fix:** Add a timeout constant in core and report a `timed-out` status.
 - **Test:** A process that never exits gets a `timed-out` status within the
   limit.
+- **Status: not fixed (deferred).** Probing showed the simple fix isn't
+  enough:
+  - **Node's `timeout` option kills only the direct child (V).** On Windows,
+    `exec("node hang.js", { timeout: 500 })` and
+    `execFile(node, [npm-cli.js, "test"], { timeout: 500 })` both called back
+    after about 0.5 s with `killed: true, signal: "SIGTERM", code: null`, and
+    the output printed so far was kept. But two `node hang.js` processes were
+    still running afterwards. The shell or npm was killed; the script it
+    started was orphaned.
+  - **On Linux the timeout may not return promptly (I).** Node calls back only
+    after the child's output pipes close. An orphaned grandchild keeps them
+    open, so the callback could wait until the script exits on its own. That
+    depends on whether `sh` and npm pass the kill on, and wasn't tested.
+  - **Proper fix (option B):** run our own timer and kill the whole process
+    tree. On Windows, use `execFile("taskkill", ["/pid", pid, "/T", "/F"])`,
+    which needs no shell. On POSIX, start the child with `detached: true` and
+    kill the process group with `process.kill(-pid, "SIGKILL")`. Track
+    timed-out explicitly, because a process killed with `taskkill` reports
+    exit code 1, not a signal. Test with a hanging fixture and a short
+    timeout, asserting the run returns well before the script would exit on
+    its own.
 
 ### F6: Output size is uncapped, and large output crashes the run (output/reliability, medium-high)
 
@@ -138,6 +159,21 @@ accepts `--format`, while MCP returns text and has no format option.
   marker) and cap the total report size, both in core.
 - **Test:** 2 MB of output produces a report under the cap that contains the
   marker.
+- **Status: partly fixed (per-check cap only).**
+  - Core sets `OUTPUT_CAP_BYTES` (32 KB) and `CAPTURE_LIMIT_BYTES` (16 MB),
+    and both runners use them.
+  - Output up to 16 MB completes normally and keeps its last 32 KB, preceded
+    by `[output truncated: N bytes omitted]`. Tests cover a 2 MB output on both
+    the shell (CLI) and npm (MCP check) paths.
+  - Output over 16 MB is no longer a crash: the process is killed and the
+    check is reported as `failed` with no exit code. Node keeps the *first*
+    16 MB in that case, so the shown tail is the end of what was captured,
+    not the true end. **This branch is untested**, because a fixture printing
+    more than 16 MB is slow. Getting the true tail would mean replacing
+    `exec`/`execFile` with `spawn` and a rolling buffer.
+  - **There is no total report cap yet.** Several checks add up (32 KB each),
+    and the changed-files list is also unbounded, so a branch touching
+    thousands of files still produces a large report.
 
 ### F7: Repo path is not validated or confined (safety/contract, medium)
 

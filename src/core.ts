@@ -3,7 +3,13 @@ import path from "node:path";
 import { changedFiles, verifyBaseRef } from "./git.js";
 import { markdownReport } from "./report.js";
 import type { ReviewRequest, ReviewResult, ValidationResult } from "./types.js";
-import { runProgram, runValidations } from "./validation.js";
+import { type OutputLimits, runProgram, runValidations } from "./validation.js";
+
+/** Output kept per check (CLI validations and MCP checks alike): the tail. */
+export const OUTPUT_CAP_BYTES = 32 * 1024;
+/** Memory ceiling per stream while a check runs; above it Node kills the process. */
+export const CAPTURE_LIMIT_BYTES = 16 * 1024 * 1024;
+const OUTPUT_LIMITS: OutputLimits = { capBytes: OUTPUT_CAP_BYTES, captureLimitBytes: CAPTURE_LIMIT_BYTES };
 
 /**
  * Allowlisted checks for the untrusted (MCP) interface. Each name maps to a
@@ -54,7 +60,7 @@ async function runCheck(name: CheckName, cwd: string): Promise<ValidationResult>
   }
   const args = CHECKS[name];
   const npm = npmInvocation();
-  return runProgram(`check: ${name} (npm ${args.join(" ")})`, npm.file, [...npm.prefixArgs, ...args], cwd);
+  return runProgram(`check: ${name} (npm ${args.join(" ")})`, npm.file, [...npm.prefixArgs, ...args], cwd, OUTPUT_LIMITS);
 }
 
 export async function reviewRepository(request: ReviewRequest): Promise<ReviewResult> {
@@ -64,6 +70,7 @@ export async function reviewRepository(request: ReviewRequest): Promise<ReviewRe
   const validations = await runValidations(
     request.validationCommands ?? [],
     request.repositoryPath,
+    OUTPUT_LIMITS,
   );
   for (const check of request.checks ?? []) {
     validations.push(await runCheck(check, request.repositoryPath));
