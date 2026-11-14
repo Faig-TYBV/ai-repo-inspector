@@ -45,14 +45,52 @@ npm run typecheck
 npm test
 ```
 
+## Interface: hybrid
+
+The tool has two interfaces with different levels of trust, built on one
+shared core (`src/core.ts`):
+
+- The **CLI** is for developers, who are trusted. It accepts free-form
+  `--validate` shell commands.
+- **MCP** is for AI agents, which are not trusted. It accepts only named,
+  allowlisted checks, which run with `execFile` and no shell.
+
+Base-ref validation, output caps, timeouts and pass/fail handling live in core,
+so both interfaces behave the same way. Allowlisting stops a caller from
+choosing a command. It does **not** sandbox the inspected repo: the `test`
+check runs `npm test`, which runs whatever that repo's `package.json` scripts
+define. Only inspect repos you trust, or run the tool inside a sandbox.
+
+## What both interfaces share
+
+- **Changed files** are listed from `git diff <base>...HEAD`, so only
+  committed changes appear. The default base is `main`.
+- **Base refs are validated.** A ref starting with `-`, or one that doesn't
+  resolve to a commit, is rejected with a clear error before anything runs.
+- **Each check has a time limit of 120 s.** A check that runs over is reported
+  as `failed (timed out)`. Only the direct child process is killed; anything it
+  started can keep running.
+- **Each check's output is capped at 32 KB.** The tail is kept, since failures
+  usually appear at the end, behind an `[output truncated: N bytes omitted]`
+  marker.
+- **A failing check is a result, not a crash.** Each check shows
+  `Status: passed|failed (exit code N | timed out)`. Errors that stop the
+  review itself, such as an invalid ref or a program that can't be started,
+  are still reported as errors.
+
 ## CLI
 
 ```bash
-npm run inspector -- review --repo ./path/to/repo --format markdown
-npm run inspector -- review --repo ./path/to/repo --validate "npm test"
+npm run inspector -- review --repo ./path/to/repo
+npm run inspector -- review --repo ./path/to/repo --base-ref main --validate "npm test"
 ```
 
-The report is written to `review-report.md`.
+- `--validate` takes a free-form shell command and can be repeated.
+- The report is written to `review-report.md` in the **current directory**,
+  overwriting any existing file.
+- Exit code: `0` if every validation passed, `1` if any failed (the report is
+  still written) or if the review couldn't run.
+- `--format` is accepted but currently ignored: output is always Markdown.
 
 ## MCP
 
@@ -62,9 +100,34 @@ Start the stdio server with:
 npm run mcp-server
 ```
 
-It exposes a `review_repository` tool. Inspect the implementation to determine
-its current input contract and whether it is suitable for the production model
-you propose.
+It exposes one tool, `review_repository`.
+
+**Input:**
+
+```ts
+{
+  repo_path: string;                        // repository to inspect
+  baseRef?: string;                         // default "main"
+  checks?: ("test" | "typecheck")[];        // npm test / npm run typecheck
+}
+```
+
+Unknown keys, such as a free-form `validationCommands` field, are rejected
+with an error that names the key, and nothing runs. Raw command strings in
+`checks` are rejected by the schema.
+
+**Output:** the Markdown report as text, plus `structuredContent`:
+
+```ts
+{
+  allChecksPassed: boolean;
+  checks: { name: string; status: "passed" | "failed"; exitCode: number | null; timedOut: boolean }[];
+}
+```
+
+A failing check is a normal, successful result (`isError` is not set).
+`isError` is used only when the review itself can't run, for example because
+of an invalid `baseRef`.
 
 ## Project layout
 

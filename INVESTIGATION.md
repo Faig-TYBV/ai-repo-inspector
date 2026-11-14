@@ -384,32 +384,32 @@ accepts `--format`, while MCP returns text and has no format option.
 
 ## Findings by severity
 
-| ID | Severity | Category | Summary | Evidence |
-|---|---|---|---|---|
-| F1 | critical | safety | MCP runs any shell command an agent sends | V |
-| F2 | high | contract | MCP ignores `repo_path`, inspects the server's own directory | V |
-| F3 | high | safety | `baseRef` option injection writes arbitrary files | V |
-| F4 | high | reliability | A failing check aborts the review | V |
-| F5 | high | reliability | No timeout on validation commands | T |
-| F6 | medium-high | output | Output uncapped; over 1 MB crashes | V |
-| F7 | medium | safety | Repo path not validated or confined | V/I |
-| F8 | medium | correctness | `--repo` path cut at the first space | V |
-| F9 | medium | correctness | Renames and non-ASCII names parsed incorrectly | V |
-| F10 | medium | output | Markdown injection through output and file names | V |
-| F11 | medium | correctness | Default base branch hardcoded to `main` | V |
-| F12 | medium | correctness | Uncommitted changes ignored (out of scope) | V |
-| F13 | medium | output | stderr dropped when stdout has output | V |
-| F14 | medium | safety | Full environment passed to checks | V/I |
-| F21 | medium | testing | Minimal tests; thin CI | T |
-| F16 | medium | consistency | `--format` ignored (skipped) | V |
-| F15 | medium-low | output | Report overwrites `./review-report.md` | T/I |
-| F19 | low-medium | contract | Weak MCP schema | V |
-| F17 | low | contract | Loose CLI argument parsing | V |
-| F18 | low | consistency | Raw, inconsistent errors | V |
-| F20 | low | build | `bin` path is wrong | V |
-| F22 | low | docs | README out of date | T |
-| F23 | low | safety | Audit findings in an unused transport (no bump) | V/I |
-| F24 | low | reliability | Blocking git call, no timeout, repo-controlled config | I |
+| ID | Severity | Category | Summary | Evidence | Status |
+|---|---|---|---|---|---|
+| F1 | critical | safety | MCP runs any shell command an agent sends | V | Fixed |
+| F2 | high | contract | MCP ignores `repo_path`, inspects the server's own directory | V | Fixed |
+| F3 | high | safety | `baseRef` option injection writes arbitrary files | V | Fixed |
+| F4 | high | reliability | A failing check aborts the review | V | Fixed |
+| F5 | high | reliability | No timeout on validation commands | T | Partly fixed: 120 s timeout; orphaned grandchildren remain |
+| F6 | medium-high | output | Output uncapped; over 1 MB crashes | V | Partly fixed: 32 KB per-check cap; no total report cap |
+| F7 | medium | safety | Repo path not validated or confined | V/I | Open |
+| F8 | medium | correctness | `--repo` path cut at the first space | V | Open |
+| F9 | medium | correctness | Renames and non-ASCII names parsed incorrectly | V | Open |
+| F10 | medium | output | Markdown injection through output and file names | V | Open |
+| F11 | medium | correctness | Default base branch hardcoded to `main` | V | Open (error is now clear, via F3) |
+| F12 | medium | correctness | Uncommitted changes ignored (out of scope) | V | Out of scope; documented limitation |
+| F13 | medium | output | stderr dropped when stdout has output | V | Open |
+| F14 | medium | safety | Full environment passed to checks | V/I | Open |
+| F21 | medium | testing | Minimal tests; thin CI | T | Partly fixed: 18 tests across core, CLI, MCP and runners; CI triggers unchanged |
+| F16 | medium | consistency | `--format` ignored (skipped) | V | Skipped; documented in README |
+| F15 | medium-low | output | Report overwrites `./review-report.md` | T/I | Open; documented in README |
+| F19 | low-medium | contract | Weak MCP schema | V | Partly fixed: unknown keys rejected, structured output; naming and limits open |
+| F17 | low | contract | Loose CLI argument parsing | V | Open |
+| F18 | low | consistency | Raw, inconsistent errors | V | Open |
+| F20 | low | build | `bin` path is wrong | V | Open |
+| F22 | low | docs | README out of date | T | Fixed |
+| F23 | low | safety | Audit findings in an unused transport (no bump) | V/I | Won't fix (no dependency bump) |
+| F24 | low | reliability | Blocking git call, no timeout, repo-controlled config | I | Open |
 
 ## Plan
 
