@@ -25,6 +25,19 @@ server.registerTool(
           .describe(`Named checks to run in the repository: ${CHECK_NAMES.join(", ")}.`),
       })
       .strict(),
+    // Machine-readable summary alongside the Markdown report. The SDK skips
+    // output validation for isError results, so errors are unchanged.
+    outputSchema: {
+      allChecksPassed: z.boolean(),
+      checks: z.array(
+        z.object({
+          name: z.string(),
+          status: z.enum(["passed", "failed"]),
+          exitCode: z.number().nullable(),
+          timedOut: z.boolean(),
+        }),
+      ),
+    },
   },
   async (input) => {
     const result = await reviewRepository({
@@ -34,7 +47,10 @@ server.registerTool(
     });
     // A failing check is a successful review, so this is not isError; the
     // pass/fail detail is in the report. Execution errors still throw.
-    return { content: [{ type: "text", text: result.report }] };
+    return {
+      content: [{ type: "text", text: result.report }],
+      structuredContent: { allChecksPassed: result.allChecksPassed, checks: result.checks },
+    };
   },
 );
 

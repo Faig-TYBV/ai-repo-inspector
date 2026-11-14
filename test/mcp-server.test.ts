@@ -101,6 +101,10 @@ describe("MCP review_repository", () => {
     expect(result.isError).toBeFalsy();
     expect(report).toContain("Status: failed (exit code 3)");
     expect(report).toContain(BEFORE_FAILURE);
+    expect(result.structuredContent).toEqual({
+      allChecksPassed: false,
+      checks: [{ name: "test", status: "failed", exitCode: 3, timedOut: false }],
+    });
   }, 30_000);
 
   it("rejects the removed validationCommands field by name, and runs nothing", async () => {

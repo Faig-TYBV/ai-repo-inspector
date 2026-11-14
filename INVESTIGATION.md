@@ -72,10 +72,11 @@ accepts `--format`, while MCP returns text and has no format option.
   binary. If `npm-cli.js` can't be found, non-Windows platforms fall back to
   `execFile("npm")`, and Windows fails with a clear error. `shell: true` is
   never used.
-- **Known gap:** the SDK silently drops unknown input keys, so a caller still
-  sending `validationCommands` gets a normal report with those commands
-  ignored. A test proves nothing runs. Rejecting unknown keys is deferred to
-  F19.
+- **Unknown keys (resolved):** at first the SDK silently dropped unknown input
+  keys, so a caller still sending `validationCommands` got a normal report
+  with those commands ignored. The tool is now registered with a `.strict()`
+  input schema, so `validationCommands` returns `isError` naming the key, and
+  nothing runs. A test covers this.
 - **Test:** An MCP client test checks that a free-form command string is
   rejected and that an allowlisted name runs the expected program.
 
@@ -324,6 +325,18 @@ accepts `--format`, while MCP returns text and has no format option.
   **V**
 - **Fix:** Use consistent names, add `.describe()` and `.max()` to every
   field, and consider structured output.
+- **Status: partly fixed.**
+  - **Unknown keys are now rejected (fixed).** The tool uses `registerTool`
+    with a `.strict()` zod object, so any key not in the schema returns
+    `isError` naming that key.
+  - **Structured output (fixed).** Successful results carry
+    `structuredContent: { allChecksPassed, checks: [{ name, status, exitCode,
+    timedOut }] }` alongside the Markdown text, declared with an
+    `outputSchema`. Core builds the summary, so the data is the same data the
+    CLI uses for its exit code. `isError` results are unchanged, because the
+    SDK skips output validation for errors.
+  - **Still open:** mixed naming (`repo_path` beside `baseRef`), no
+    description on `baseRef`, and no `.max()` length or count limits.
 
 ### F20: `bin` points to a file the build doesn't produce (build/docs, low)
 

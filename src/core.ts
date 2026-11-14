@@ -89,5 +89,12 @@ export async function reviewRepository(request: ReviewRequest): Promise<ReviewRe
       validationResults: validations,
     }),
     allChecksPassed: validations.every((result) => result.status === "passed"),
+    // Results come back in this order: free-form validations, then checks.
+    checks: validations.map((result, index) => ({
+      name: [...(request.validationCommands ?? []), ...(request.checks ?? [])][index],
+      status: result.status,
+      exitCode: result.exitCode,
+      timedOut: result.timedOut,
+    })),
   };
 }

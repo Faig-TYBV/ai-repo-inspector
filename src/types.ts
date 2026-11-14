@@ -15,10 +15,20 @@ export type ValidationResult = {
   output: string;
 };
 
+/** Machine-readable outcome of one validation or check (no output text). */
+export type CheckSummary = {
+  /** The check name (MCP) or the command (CLI --validate). */
+  name: string;
+  status: ValidationResult["status"];
+  exitCode: number | null;
+  timedOut: boolean;
+};
+
 export type ReviewResult = {
   report: string;
   /** False if any validation or check failed. Adapters use this for exit status. */
   allChecksPassed: boolean;
+  checks: CheckSummary[];
 };
 
 export type ReviewRequest = {
