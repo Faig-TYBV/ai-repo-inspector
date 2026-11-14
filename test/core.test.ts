@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { reviewRepository } from "../src/core.js";
+import { changedFiles } from "../src/git.js";
 import { createFixtureRepo, removeFixture } from "./helpers/fixture.js";
 
 describe("reviewRepository baseRef validation", () => {
@@ -23,6 +24,13 @@ describe("reviewRepository baseRef validation", () => {
     await expect(
       reviewRepository({ repositoryPath: repo, baseRef: `--output=${path.join(outDir, "pwned")}` }),
     ).rejects.toThrow(/must not start with "-"/);
+    expect(readdirSync(outDir)).toEqual([]);
+  });
+
+  // Guards the second layer on its own: even without verifyBaseRef, the
+  // --end-of-options in the diff call makes git refuse an injected option.
+  it("changedFiles makes git refuse an injected option, and writes no file", () => {
+    expect(() => changedFiles(repo, `--output=${path.join(outDir, "pwned")}`)).toThrow();
     expect(readdirSync(outDir)).toEqual([]);
   });
 
