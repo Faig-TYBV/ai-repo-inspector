@@ -119,4 +119,4 @@ In priority order, each as its own commit with a failing-first test:
 ## Approximate focused-work time
 
 - Start: 12:05 (Baku time, 14 Nov 2026)
-- Finish:
+- Finish: 13:30 (Baku time, 14 Nov 2026)
