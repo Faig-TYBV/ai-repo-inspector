@@ -103,15 +103,15 @@ describe("MCP review_repository", () => {
     expect(report).toContain(BEFORE_FAILURE);
   }, 30_000);
 
-  it("ignores the removed validationCommands field and runs nothing", async () => {
+  it("rejects the removed validationCommands field by name, and runs nothing", async () => {
     const result = await client.callTool({
       name: "review_repository",
       arguments: { repo_path: repoB, validationCommands: ["node print-marker.js"] },
     });
-    const report = textOf(result);
+    const text = textOf(result);
 
-    expect(result.isError).toBeFalsy();
-    expect(report).toContain("only-in-b.txt");
-    expect(report).not.toContain(MARKER);
+    expect(result.isError).toBe(true);
+    expect(text).toContain("validationCommands");
+    expect(text).not.toContain(MARKER);
   }, 30_000);
 });
