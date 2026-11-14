@@ -21,12 +21,14 @@ server.tool(
       .describe(`Named checks to run in the repository: ${CHECK_NAMES.join(", ")}.`),
   },
   async (input) => {
-    const report = await reviewRepository({
+    const result = await reviewRepository({
       repositoryPath: input.repo_path,
       baseRef: input.baseRef,
       checks: input.checks,
     });
-    return { content: [{ type: "text", text: report }] };
+    // A failing check is a successful review, so this is not isError; the
+    // pass/fail detail is in the report. Execution errors still throw.
+    return { content: [{ type: "text", text: result.report }] };
   },
 );
 

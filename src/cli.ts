@@ -38,14 +38,18 @@ async function main() {
     return;
   }
 
-  const report = await reviewRepository({
+  const result = await reviewRepository({
     repositoryPath: args.repositoryPath,
     baseRef: args.baseRef,
     validationCommands: args.validations,
     format: args.format,
   });
-  writeFileSync("review-report.md", report, "utf8");
+  writeFileSync("review-report.md", result.report, "utf8");
   console.log("Review report written to review-report.md");
+  if (!result.allChecksPassed) {
+    console.error("One or more checks failed; see review-report.md");
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {

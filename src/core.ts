@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { changedFiles } from "./git.js";
 import { markdownReport } from "./report.js";
-import type { ReviewRequest, ValidationResult } from "./types.js";
+import type { ReviewRequest, ReviewResult, ValidationResult } from "./types.js";
 import { runProgram, runValidations } from "./validation.js";
 
 /**
@@ -57,7 +57,7 @@ async function runCheck(name: CheckName, cwd: string): Promise<ValidationResult>
   return runProgram(`check: ${name} (npm ${args.join(" ")})`, npm.file, [...npm.prefixArgs, ...args], cwd);
 }
 
-export async function reviewRepository(request: ReviewRequest): Promise<string> {
+export async function reviewRepository(request: ReviewRequest): Promise<ReviewResult> {
   const files = changedFiles(request.repositoryPath, request.baseRef);
   const validations = await runValidations(
     request.validationCommands ?? [],
@@ -66,9 +66,12 @@ export async function reviewRepository(request: ReviewRequest): Promise<string> 
   for (const check of request.checks ?? []) {
     validations.push(await runCheck(check, request.repositoryPath));
   }
-  return markdownReport({
-    repositoryPath: request.repositoryPath,
-    changedFiles: files,
-    validationResults: validations,
-  });
+  return {
+    report: markdownReport({
+      repositoryPath: request.repositoryPath,
+      changedFiles: files,
+      validationResults: validations,
+    }),
+    allChecksPassed: validations.every((result) => result.status === "passed"),
+  };
 }

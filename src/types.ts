@@ -8,7 +8,15 @@ export type ChangedFile = {
 export type ValidationResult = {
   command: string;
   status: "passed" | "failed";
+  /** Process exit code; null if the process was killed by a signal. */
+  exitCode: number | null;
   output: string;
+};
+
+export type ReviewResult = {
+  report: string;
+  /** False if any validation or check failed. Adapters use this for exit status. */
+  allChecksPassed: boolean;
 };
 
 export type ReviewRequest = {

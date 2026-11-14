@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createFixtureRepo, removeFixture } from "./helpers/fixture.js";
+import { BEFORE_FAILURE, createFixtureRepo, failingProjectFiles, removeFixture } from "./helpers/fixture.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverEntry = path.join(projectRoot, "src", "mcp-server.ts");
@@ -29,11 +29,13 @@ function textOf(result: Awaited<ReturnType<Client["callTool"]>>): string {
 describe("MCP review_repository", () => {
   let repoA: string; // server's working directory
   let repoB: string; // repository the caller asks about
+  let repoC: string; // repository whose `test` check fails
   let client: Client;
 
   beforeAll(async () => {
     repoA = createFixtureRepo("only-in-a.txt");
     repoB = createFixtureRepo("only-in-b.txt", npmProjectFiles);
+    repoC = createFixtureRepo("only-in-c.txt", failingProjectFiles);
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: ["--import", tsxLoader, serverEntry],
@@ -48,6 +50,7 @@ describe("MCP review_repository", () => {
     await client?.close();
     if (repoA) removeFixture(repoA);
     if (repoB) removeFixture(repoB);
+    if (repoC) removeFixture(repoC);
   });
 
   it("inspects the repository given in repo_path, not the server's working directory", async () => {
@@ -84,7 +87,20 @@ describe("MCP review_repository", () => {
 
     expect(result.isError).toBeFalsy();
     expect(report).toContain("check: test");
+    expect(report).toContain("Status: passed (exit code 0)");
     expect(report).toContain(MARKER);
+  }, 30_000);
+
+  it("reports a failing check as a result, not an error", async () => {
+    const result = await client.callTool({
+      name: "review_repository",
+      arguments: { repo_path: repoC, checks: ["test"] },
+    });
+    const report = textOf(result);
+
+    expect(result.isError).toBeFalsy();
+    expect(report).toContain("Status: failed (exit code 3)");
+    expect(report).toContain(BEFORE_FAILURE);
   }, 30_000);
 
   it("ignores the removed validationCommands field and runs nothing", async () => {

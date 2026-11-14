@@ -35,6 +35,17 @@ export function createFixtureRepo(addedFile: string, baseFiles: Record<string, s
   return dir;
 }
 
+/**
+ * Base files for a repo whose check fails: `fail.js` prints BEFORE_FAILURE
+ * then exits 3, and the `test` script runs it. Uses process.exitCode rather
+ * than process.exit() so stdout is flushed before exit on every platform.
+ */
+export const BEFORE_FAILURE = "BEFORE-FAILURE";
+export const failingProjectFiles: Record<string, string> = {
+  "package.json": JSON.stringify({ name: "fixture", version: "0.0.0", private: true, scripts: { test: "node fail.js" } }),
+  "fail.js": `console.log(${JSON.stringify(BEFORE_FAILURE)});\nprocess.exitCode = 3;\n`,
+};
+
 export function removeFixture(dir: string): void {
   rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
 }
