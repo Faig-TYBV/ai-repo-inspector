@@ -12,6 +12,15 @@ const serverEntry = path.join(projectRoot, "src", "mcp-server.ts");
 // `--import tsx` could not be resolved. Works the same on Windows and Linux.
 const tsxLoader = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
 
+// Repo B carries a package.json whose `test` script prints MARKER, so we can
+// tell from the report whether anything was actually executed. The marker
+// text never appears in any command string we send.
+const MARKER = "FIXTURE-TEST-RAN";
+const npmProjectFiles = {
+  "package.json": JSON.stringify({ name: "fixture", version: "0.0.0", private: true, scripts: { test: "node print-marker.js" } }),
+  "print-marker.js": `console.log(${JSON.stringify(MARKER)});\n`,
+};
+
 function textOf(result: Awaited<ReturnType<Client["callTool"]>>): string {
   const content = (result.content ?? []) as Array<{ type: string; text?: string }>;
   return content.map((part) => part.text ?? "").join("\n");
@@ -24,7 +33,7 @@ describe("MCP review_repository", () => {
 
   beforeAll(async () => {
     repoA = createFixtureRepo("only-in-a.txt");
-    repoB = createFixtureRepo("only-in-b.txt");
+    repoB = createFixtureRepo("only-in-b.txt", npmProjectFiles);
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: ["--import", tsxLoader, serverEntry],
@@ -52,5 +61,41 @@ describe("MCP review_repository", () => {
     expect(report).toContain(`# Review Report: ${repoB}`);
     expect(report).toContain("only-in-b.txt");
     expect(report).not.toContain("only-in-a.txt");
+  }, 30_000);
+
+  it("rejects a raw command string in checks", async () => {
+    const result = await client.callTool({
+      name: "review_repository",
+      arguments: { repo_path: repoB, checks: ["node print-marker.js"] },
+    });
+    const text = textOf(result);
+
+    expect(result.isError).toBe(true);
+    expect(text).toMatch(/Invalid enum value/);
+    expect(text).not.toContain(MARKER);
+  }, 30_000);
+
+  it("runs an allowlisted check and includes its output in the report", async () => {
+    const result = await client.callTool({
+      name: "review_repository",
+      arguments: { repo_path: repoB, checks: ["test"] },
+    });
+    const report = textOf(result);
+
+    expect(result.isError).toBeFalsy();
+    expect(report).toContain("check: test");
+    expect(report).toContain(MARKER);
+  }, 30_000);
+
+  it("ignores the removed validationCommands field and runs nothing", async () => {
+    const result = await client.callTool({
+      name: "review_repository",
+      arguments: { repo_path: repoB, validationCommands: ["node print-marker.js"] },
+    });
+    const report = textOf(result);
+
+    expect(result.isError).toBeFalsy();
+    expect(report).toContain("only-in-b.txt");
+    expect(report).not.toContain(MARKER);
   }, 30_000);
 });

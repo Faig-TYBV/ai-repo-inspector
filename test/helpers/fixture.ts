@@ -16,11 +16,16 @@ function git(cwd: string, args: string[]): void {
  * Creates a temporary repo with a `main` branch (named explicitly, not the
  * machine default) holding one commit, and a checked-out `feature` branch
  * that adds `addedFile`. So `main...HEAD` reports exactly that one file.
+ * `baseFiles` (name -> content) are committed on `main`, so they don't show
+ * up in the diff.
  */
-export function createFixtureRepo(addedFile: string): string {
+export function createFixtureRepo(addedFile: string, baseFiles: Record<string, string> = {}): string {
   const dir = mkdtempSync(path.join(tmpdir(), "inspector-fixture-"));
   git(dir, ["init", "-q", "-b", "main"]);
   writeFileSync(path.join(dir, "base.txt"), "base\n");
+  for (const [name, content] of Object.entries(baseFiles)) {
+    writeFileSync(path.join(dir, name), content);
+  }
   git(dir, ["add", "."]);
   git(dir, ["commit", "-q", "-m", "base"]);
   git(dir, ["checkout", "-q", "-b", "feature"]);

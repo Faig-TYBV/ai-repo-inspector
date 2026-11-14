@@ -21,6 +21,9 @@ function parseArgs(argv: string[]): Args {
     } else if (token === "--format") {
       args.format = argv[++index] as Args["format"];
     } else if (token === "--validate") {
+      // Free-form shell command: intentional, because the CLI is the trusted
+      // developer interface. MCP accepts only allowlisted checks instead
+      // (see CHECKS in core.ts); this is the one deliberate adapter difference.
       args.validations.push(argv[++index]);
     }
   }

@@ -66,6 +66,16 @@ accepts `--format`, while MCP returns text and has no format option.
   allowlisted `npm test` still runs whatever `package.json` defines. Inspecting
   untrusted repos safely would need a sandbox (container or VM, no network,
   minimal environment), which is out of scope.
+- **Windows note (V):** `execFile("npm.cmd")` without a shell throws
+  `spawn EINVAL`, because Node refuses to run `.cmd` files without one. Checks
+  therefore run npm's JS entry point (`npm-cli.js`) with the current `node`
+  binary. If `npm-cli.js` can't be found, non-Windows platforms fall back to
+  `execFile("npm")`, and Windows fails with a clear error. `shell: true` is
+  never used.
+- **Known gap:** the SDK silently drops unknown input keys, so a caller still
+  sending `validationCommands` gets a normal report with those commands
+  ignored. A test proves nothing runs. Rejecting unknown keys is deferred to
+  F19.
 - **Test:** An MCP client test checks that a free-form command string is
   rejected and that an allowlisted name runs the expected program.
 
