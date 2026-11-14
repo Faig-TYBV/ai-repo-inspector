@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { changedFiles } from "./git.js";
+import { changedFiles, verifyBaseRef } from "./git.js";
 import { markdownReport } from "./report.js";
 import type { ReviewRequest, ReviewResult, ValidationResult } from "./types.js";
 import { runProgram, runValidations } from "./validation.js";
@@ -58,6 +58,8 @@ async function runCheck(name: CheckName, cwd: string): Promise<ValidationResult>
 }
 
 export async function reviewRepository(request: ReviewRequest): Promise<ReviewResult> {
+  // Input error, not a failed check: thrown before anything runs.
+  verifyBaseRef(request.repositoryPath, request.baseRef ?? "main");
   const files = changedFiles(request.repositoryPath, request.baseRef);
   const validations = await runValidations(
     request.validationCommands ?? [],
