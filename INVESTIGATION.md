@@ -361,6 +361,12 @@ accepts `--format`, while MCP returns text and has no format option.
 - **Scenario:** It advertises `--format`, which does nothing. It does not say
   where the report is written, that `--validate` runs a shell, or what the MCP
   input contract is. **T**
+- **Status: fixed.** The README now describes the hybrid interface (and that
+  allowlisting does not sandbox the repo's own scripts), the behaviour both
+  interfaces share (base-ref validation, 120 s timeout, 32 KB output cap that
+  keeps the tail, failing checks reported as results), the CLI's report
+  location, exit codes and the ignored `--format`, and the MCP input contract
+  with `structuredContent`.
 
 ### F23: Dependency audit findings (safety, low; no bump)
 
@@ -413,8 +419,13 @@ accepts `--format`, while MCP returns text and has no format option.
 
 ## Plan
 
-The fixes below are applied in this order, one at a time. Each starts with a
-test that fails before the fix and passes after it.
+This is the **original plan**, written before any code changed. The Status
+column in the table above shows what actually happened. In short: F2, F1, F4
+and F3 were fixed in that order; F5 (option A), F6 (per-check cap) and parts
+of F19 were added later; F22 was fixed in a final docs pass.
+
+Fixes were applied one at a time, each starting with a test that fails before
+the fix and passes after it.
 
 1. **F2:** an MCP correctness fix that later MCP tests depend on.
 2. **F1:** the critical issue. It also puts the hybrid interface decision into
